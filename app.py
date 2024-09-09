@@ -1,10 +1,10 @@
-from flask import Flask, render_template, jsonify
+from flask import Flask, jsonify, render_template
 from neo4j import GraphDatabase
 
 # Neo4j 설정
 uri = "neo4j://192.168.13.68:7689"
 user = "neo4j"
-password = "keisha587587!"  # 실제 비밀번호로 교체하세요.
+password = "keisha587587!"
 
 # Flask 애플리케이션 초기화
 app = Flask(__name__)
@@ -17,24 +17,20 @@ def get_projects():
     query = "MATCH (n:Project) RETURN n LIMIT 25"
     with driver.session() as session:
         results = session.run(query)
-        return [
-            {
-                "id": record["n"]["id"],
-                "name": record["n"]["name"].encode('utf-8').decode('unicode_escape') if record["n"]["name"] else None
-            }
-            for record in results
-        ]
-
-# API 엔드포인트
-@app.route("/api/projects")
-def api_projects():
-    projects = get_projects()
-    return jsonify(projects)
+        return [{"id": record["n"]["id"], "name": record["n"]["name"]} for record in results]
 
 # 라우트 설정
 @app.route("/")
 def index():
     return render_template("index.html")
+
+@app.route("/api/projects", methods=["GET"])
+def api_projects():
+    projects = get_projects()
+    # UTF-8로 데이터를 명시적으로 인코딩
+    response = jsonify(projects)
+    response.headers["Content-Type"] = "application/json; charset=utf-8"
+    return response
 
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0')
