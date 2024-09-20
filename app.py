@@ -18,7 +18,6 @@ def get_projects():
     MATCH (n:Project)
     OPTIONAL MATCH (n)-[r]->(m)
     RETURN n, collect({source: id(n), target: id(m)}) AS links
-    LIMIT 25
     """
     with driver.session() as session:
         results = session.run(query)
