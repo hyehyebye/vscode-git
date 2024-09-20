@@ -83,7 +83,7 @@ fetch("/api/projects")
       )
       .attr("fill", "orange");
 
-    // 텍스트 중앙에 위치, 5글자 넘어가면 공백 기준으로 줄바꿈
+    // 텍스트 중앙에 위치, 크기 자동 조정 및 줄바꿈 추가
     const text = svg
       .append("g")
       .selectAll("text")
@@ -107,7 +107,6 @@ fetch("/api/projects")
 
       node.attr("cx", (d) => d.x).attr("cy", (d) => d.y);
 
-      // 텍스트 위치를 노드의 좌표에 맞게 갱신
       text.attr("x", (d) => d.x).attr("y", (d) => d.y);
     });
   })
