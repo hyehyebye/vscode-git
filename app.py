@@ -14,10 +14,26 @@ driver = GraphDatabase.driver(uri, auth=(user, password))
 
 # 쿼리 실행 함수
 def get_projects():
-    query = "MATCH (n:Project) RETURN n LIMIT 25"
+    query = """
+    MATCH (n:Project)
+    OPTIONAL MATCH (n)-[r]->(m)
+    RETURN n, collect({source: id(n), target: id(m)}) AS links
+    LIMIT 25
+    """
     with driver.session() as session:
         results = session.run(query)
-        return [{"id": record["n"]["id"], "name": record["n"]["name"]} for record in results]
+        nodes = []
+        links = []
+        for record in results:
+            node = {
+                "id": record["n"].id,
+                "gid": record["n"]["gid"],
+                "name": record["n"]["name"]
+            }
+            nodes.append(node)
+            links.extend(record["links"])
+        return {"nodes": nodes, "links": links}
+
 
 # 라우트 설정
 @app.route("/")
@@ -26,9 +42,8 @@ def index():
 
 @app.route("/api/projects", methods=["GET"])
 def api_projects():
-    projects = get_projects()
-    # UTF-8로 데이터를 명시적으로 인코딩
-    response = jsonify(projects)
+    data = get_projects()
+    response = jsonify(data)
     response.headers["Content-Type"] = "application/json; charset=utf-8"
     return response
 
