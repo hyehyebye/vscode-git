@@ -2,7 +2,6 @@ fetch("/api/projects")
   .then((response) => response.json())
   .then((projectData) => {
     console.log("Projects Data:", projectData);
-
     const width = 800,
       height = 600;
 
@@ -12,46 +11,43 @@ fetch("/api/projects")
       .attr("width", width)
       .attr("height", height);
 
-    // 노드와 링크를 정의합니다.
-    const nodes = projectData.nodes.map((project) => ({
-      id: project.id,
-      gid: project.gid,
-      name: project.name,
-    }));
+    // Map nodes and create a dictionary for quick access
+    const nodeMap = new Map(projectData.nodes.map((node) => [node.id, node]));
+    const nodes = projectData.nodes;
 
+    // Map links to directly reference node objects
     const links = projectData.links
       .map((link) => ({
-        source: nodes.find((n) => n.gid === link.source)
-          ? nodes.find((n) => n.gid === link.source).gid
-          : null,
-        target: nodes.find((n) => n.gid === link.target)
-          ? nodes.find((n) => n.gid === link.target).gid
-          : null,
+        source: nodeMap.get(link.source),
+        target: nodeMap.get(link.target),
       }))
-      .filter((link) => link.source !== null && link.target !== null);
+      .filter((link) => link.source && link.target); // Filter out any undefined references
 
-    // 시뮬레이션 생성 및 노드와 링크를 처리합니다.
+    // Initialize the simulation with nodes and links
     const simulation = d3
       .forceSimulation(nodes)
       .force(
         "link",
-        d3.forceLink(links).id((d) => d.gid)
+        d3.forceLink(links).id((d) => d.id)
       )
       .force("charge", d3.forceManyBody())
       .force("center", d3.forceCenter(width / 2, height / 2));
 
-    // 링크를 추가합니다.
+    // Create and append the visual elements for links
     const link = svg
       .append("g")
+      .attr("class", "links")
       .selectAll("line")
       .data(links)
       .enter()
       .append("line")
+      .attr("stroke", "gray")
       .attr("stroke-width", 1.5);
 
-    // 노드를 추가합니다.
+    // Create and append the visual elements for nodes
     const node = svg
       .append("g")
+      .attr("class", "nodes")
       .selectAll("circle")
       .data(nodes)
       .enter()
@@ -61,23 +57,12 @@ fetch("/api/projects")
       .call(
         d3
           .drag()
-          .on("start", (event, d) => {
-            if (!event.active) simulation.alphaTarget(0.3).restart();
-            d.fx = d.x;
-            d.fy = d.y;
-          })
-          .on("drag", (event, d) => {
-            d.fx = event.x;
-            d.fy = event.y;
-          })
-          .on("end", (event, d) => {
-            if (!event.active) simulation.alphaTarget(0);
-            d.fx = null;
-            d.fy = null;
-          })
+          .on("start", dragStarted)
+          .on("drag", dragged)
+          .on("end", dragEnded)
       );
 
-    // 노드 이름을 추가합니다.
+    // Append labels to the nodes
     const text = svg
       .append("g")
       .selectAll("text")
@@ -85,10 +70,28 @@ fetch("/api/projects")
       .enter()
       .append("text")
       .text((d) => d.name)
-      .attr("x", (d) => d.x + 10)
-      .attr("y", (d) => d.y);
+      .attr("x", 10)
+      .attr("y", 3);
 
-    // 시뮬레이션 동안 노드와 링크의 위치를 업데이트합니다.
+    // Define drag behaviors
+    function dragStarted(event, d) {
+      if (!event.active) simulation.alphaTarget(0.3).restart();
+      d.fx = d.x;
+      d.fy = d.y;
+    }
+
+    function dragged(event, d) {
+      d.fx = event.x;
+      d.fy = event.y;
+    }
+
+    function dragEnded(event, d) {
+      if (!event.active) simulation.alphaTarget(0);
+      d.fx = null;
+      d.fy = null;
+    }
+
+    // Update positions each tick
     simulation.on("tick", () => {
       link
         .attr("x1", (d) => d.source.x)
