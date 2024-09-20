@@ -31,7 +31,10 @@ fetch("/api/projects")
       .forceSimulation(nodes)
       .force(
         "link",
-        d3.forceLink(links).id((d) => d.id)
+        d3
+          .forceLink(links)
+          .id((d) => d.id)
+          .distance(250) // 노드 간 거리 설정
       )
       .force("charge", d3.forceManyBody().strength(-300)) // 반발력 설정
       .force("center", d3.forceCenter(width / 2, height / 2))
@@ -61,7 +64,7 @@ fetch("/api/projects")
       .attr("fill", "gray")
       .text((d) => d.type);
 
-    // 노드 크기 계산: 연결된 노드 수에 비례하여 크기 설정
+    // 노드 크기 계산: 노드 크기를 5배로 증가
     const node = svg
       .append("g")
       .selectAll("circle")
@@ -71,33 +74,16 @@ fetch("/api/projects")
       .attr(
         "r",
         (d) =>
-          10 +
-          Math.sqrt(
-            links.filter((l) => l.source === d.id || l.target === d.id).length
-          ) *
-            10
-      ) // 연결된 노드 수에 따른 가중치
-      .attr("fill", "orange")
-      .call(
-        d3
-          .drag()
-          .on("start", (event, d) => {
-            if (!event.active) simulation.alphaTarget(0.3).restart();
-            d.fx = d.x;
-            d.fy = d.y;
-          })
-          .on("drag", (event, d) => {
-            d.fx = event.x;
-            d.fy = event.y;
-          })
-          .on("end", (event, d) => {
-            if (!event.active) simulation.alphaTarget(0);
-            d.fx = null;
-            d.fy = null;
-          })
-      );
+          (10 +
+            Math.sqrt(
+              links.filter((l) => l.source === d.id || l.target === d.id).length
+            ) *
+              10) *
+          3.5
+      )
+      .attr("fill", "orange");
 
-    // 텍스트 중앙에 위치, 크기 자동 조정 및 줄바꿈 추가
+    // 텍스트 중앙에 위치, 5글자 넘어가면 공백 기준으로 줄바꿈
     const text = svg
       .append("g")
       .selectAll("text")
@@ -105,7 +91,6 @@ fetch("/api/projects")
       .enter()
       .append("text")
       .attr("text-anchor", "middle") // 텍스트 중앙 정렬
-      .style("font-size", (d) => `${Math.max(10, 20 - d.name.length * 0.5)}px`) // 글자 크기를 자동으로 조정
       .text((d) => d.name);
 
     // 시뮬레이션 동안 노드와 링크의 위치를 업데이트합니다.
@@ -122,6 +107,7 @@ fetch("/api/projects")
 
       node.attr("cx", (d) => d.x).attr("cy", (d) => d.y);
 
+      // 텍스트 위치를 노드의 좌표에 맞게 갱신
       text.attr("x", (d) => d.x).attr("y", (d) => d.y);
     });
   })
