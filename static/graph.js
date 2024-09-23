@@ -26,6 +26,21 @@ fetch("/api/projects")
       g.attr("transform", event.transform); // g 태그의 변환 적용
     }
 
+    // 화살표 marker 추가
+    svg
+      .append("defs")
+      .append("marker")
+      .attr("id", "arrow")
+      .attr("viewBox", "0 -5 10 10")
+      .attr("refX", 45) // 노드 크기에 따라 화살표 위치를 조정
+      .attr("refY", 0)
+      .attr("markerWidth", 8)
+      .attr("markerHeight", 8)
+      .attr("orient", "auto")
+      .append("path")
+      .attr("d", "M0,-5L10,0L0,5")
+      .attr("fill", "gray");
+
     // 노드와 링크를 정의합니다.
     const nodes = projectData.nodes.map((project) => ({
       id: project.id,
@@ -66,7 +81,52 @@ fetch("/api/projects")
       .enter()
       .append("line")
       .attr("stroke", "gray")
-      .attr("stroke-width", 1.5);
+      .attr("stroke-width", 1.5)
+      .attr("marker-end", "url(#arrow)"); // 화살표 marker 추가
+
+    const nodeRadius = (d) =>
+      (10 +
+        Math.sqrt(
+          links.filter((l) => l.source === d.id || l.target === d.id).length
+        ) *
+          10) *
+      3.5;
+
+    // 링크의 끝점을 노드의 가장자리로 설정
+    simulation.on("tick", () => {
+      link
+        .attr("x1", (d) => {
+          const angle = Math.atan2(
+            d.target.y - d.source.y,
+            d.target.x - d.source.x
+          );
+          return d.source.x + Math.cos(angle) * nodeRadius(d.source); // 노드 반지름만큼 x 좌표 조정
+        })
+        .attr("y1", (d) => {
+          const angle = Math.atan2(
+            d.target.y - d.source.y,
+            d.target.x - d.source.x
+          );
+          return d.source.y + Math.sin(angle) * nodeRadius(d.source); // 노드 반지름만큼 y 좌표 조정
+        })
+        .attr("x2", (d) => {
+          const angle = Math.atan2(
+            d.source.y - d.target.y,
+            d.source.x - d.target.x
+          );
+          return d.target.x + Math.cos(angle) * nodeRadius(d.target); // 노드 반지름만큼 x 좌표 조정
+        })
+        .attr("y2", (d) => {
+          const angle = Math.atan2(
+            d.source.y - d.target.y,
+            d.source.x - d.target.x
+          );
+          return d.target.y + Math.sin(angle) * nodeRadius(d.target); // 노드 반지름만큼 y 좌표 조정
+        });
+
+      node.attr("cx", (d) => d.x).attr("cy", (d) => d.y);
+      text.attr("x", (d) => d.x).attr("y", (d) => d.y);
+    });
 
     // 링크 라벨 추가
     const linkText = g
@@ -77,7 +137,7 @@ fetch("/api/projects")
       .append("text")
       .attr("font-size", 10)
       .attr("fill", "gray")
-      .text((d) => d.type);
+      .text((d) => `${d.type}`);
 
     // 노드 크기 계산: 노드 크기를 5배로 증가
     const node = g
