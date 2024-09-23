@@ -116,15 +116,33 @@ fetch("/api/projects")
           })
       );
 
-    // 텍스트 중앙에 위치
+    // 텍스트도 드래그 가능하도록 처리
     const text = g
       .append("g")
       .selectAll("text")
       .data(nodes)
       .enter()
       .append("text")
-      .attr("text-anchor", "middle")
-      .text((d) => d.name);
+      .attr("text-anchor", "middle") // 텍스트 중앙 정렬
+      .text((d) => d.name)
+      .call(
+        d3
+          .drag()
+          .on("start", (event, d) => {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+          })
+          .on("drag", (event, d) => {
+            d.fx = event.x;
+            d.fy = event.y;
+          })
+          .on("end", (event, d) => {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+          })
+      );
 
     // 시뮬레이션 동안 노드와 링크의 위치를 업데이트합니다.
     simulation.on("tick", () => {
