@@ -5,11 +5,26 @@ fetch("/api/projects")
     const width = 1600,
       height = 1200;
 
+    // svg를 추가하고 zoom/pan 기능을 활성화
     const svg = d3
       .select("#graph")
       .append("svg")
       .attr("width", width)
-      .attr("height", height);
+      .attr("height", height)
+      .call(
+        d3
+          .zoom()
+          .scaleExtent([0.5, 4]) // 줌의 최소/최대 범위 설정
+          .on("zoom", zoomed)
+      );
+
+    // 내부 요소를 위한 g 태그 추가
+    const g = svg.append("g");
+
+    // zoom 이벤트 핸들러
+    function zoomed(event) {
+      g.attr("transform", event.transform); // g 태그의 변환 적용
+    }
 
     // 노드와 링크를 정의합니다.
     const nodes = projectData.nodes.map((project) => ({
@@ -37,14 +52,14 @@ fetch("/api/projects")
           .distance(250) // 노드 간 거리 설정
       )
       .force("charge", d3.forceManyBody().strength(-300)) // 반발력 설정
-      .force("center", d3.forceCenter(width / 2, height / 2))
+      .force("center", d3.forceCenter(width / 2, height / 2)) // 중심 위치 설정
       .force(
         "collision",
         d3.forceCollide().radius((d) => d.size)
-      ); // 충돌 반경
+      );
 
     // 링크를 추가합니다.
-    const link = svg
+    const link = g
       .append("g")
       .selectAll("line")
       .data(links)
@@ -54,7 +69,7 @@ fetch("/api/projects")
       .attr("stroke-width", 1.5);
 
     // 링크 라벨 추가
-    const linkText = svg
+    const linkText = g
       .append("g")
       .selectAll("text")
       .data(links)
@@ -65,7 +80,7 @@ fetch("/api/projects")
       .text((d) => d.type);
 
     // 노드 크기 계산: 노드 크기를 5배로 증가
-    const node = svg
+    const node = g
       .append("g")
       .selectAll("circle")
       .data(nodes)
@@ -81,16 +96,34 @@ fetch("/api/projects")
               10) *
           3.5
       )
-      .attr("fill", "orange");
+      .attr("fill", "orange")
+      .call(
+        d3
+          .drag()
+          .on("start", (event, d) => {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+          })
+          .on("drag", (event, d) => {
+            d.fx = event.x;
+            d.fy = event.y;
+          })
+          .on("end", (event, d) => {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+          })
+      );
 
-    // 텍스트 중앙에 위치, 크기 자동 조정 및 줄바꿈 추가
-    const text = svg
+    // 텍스트 중앙에 위치
+    const text = g
       .append("g")
       .selectAll("text")
       .data(nodes)
       .enter()
       .append("text")
-      .attr("text-anchor", "middle") // 텍스트 중앙 정렬
+      .attr("text-anchor", "middle")
       .text((d) => d.name);
 
     // 시뮬레이션 동안 노드와 링크의 위치를 업데이트합니다.
