@@ -12,6 +12,17 @@
   <body>
     <h1>Neo4j Project Graph</h1>
     <div id="graph"></div>
+
+    <div id="popup" class="popup">
+      <h3 id="popup-title"></h3>
+      <p id="popup-id"></p>
+      <p id="popup-gid"></p>
+      <p id="popup-parents"></p>
+      <p id="popup-children"></p>
+    </div>
+
+    <div id="popup-overlay" class="popup-overlay"></div>
+
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="{{ url_for('static', filename='graph.js') }}"></script>
   </body>

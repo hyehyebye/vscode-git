@@ -5,3 +5,56 @@
   stroke-width: 1.5px;
   text-anchor: middle;
 }
+
+.popup {
+  position: absolute;
+  width: 300px;
+  padding: 20px;
+  background-color: white;
+  border-radius: 10px;
+  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+  font-family: Arial, sans-serif;
+  display: none;
+}
+
+.popup h3 {
+  margin-top: 0;
+  font-weight: bold;
+  font-size: 1.2em;
+}
+
+.popup p {
+  margin: 5px 0;
+  font-size: 0.9em;
+  color: #333;
+}
+
+.popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.4);
+  display: none;
+  z-index: 10;
+}
+
+#popup {
+  position: absolute;
+  background-color: white;
+  border-radius: 10px;
+  padding: 15px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  z-index: 1001; /* 오버레이보다 위에 배치되도록 설정 */
+}
+
+#popup-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.5); /* 투명도 있는 회색 오버레이 */
+  z-index: 1000; /* 팝업보다 아래에 위치 */
+}
