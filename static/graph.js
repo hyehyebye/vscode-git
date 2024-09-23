@@ -15,24 +15,19 @@ fetch("/api/projects")
         d3
           .zoom()
           .scaleExtent([0.5, 4]) // 줌의 최소/최대 범위 설정
-          .on("zoom", zoomed)
+          .on("zoom", (event) => g.attr("transform", event.transform)) // 줌/패닝 핸들러
       );
 
     // 내부 요소를 위한 g 태그 추가
     const g = svg.append("g");
 
-    // zoom 이벤트 핸들러
-    function zoomed(event) {
-      g.attr("transform", event.transform); // g 태그의 변환 적용
-    }
-
-    // 화살표 marker 추가
+    // 화살표 marker 정의 (노드 크기에 따라 화살표 위치 조정)
     svg
       .append("defs")
       .append("marker")
       .attr("id", "arrow")
       .attr("viewBox", "0 -5 10 10")
-      .attr("refX", 45) // 노드 크기에 따라 화살표 위치를 조정
+      .attr("refX", 45) // refX 값 조정
       .attr("refY", 0)
       .attr("markerWidth", 8)
       .attr("markerHeight", 8)
@@ -41,7 +36,7 @@ fetch("/api/projects")
       .attr("d", "M0,-5L10,0L0,5")
       .attr("fill", "gray");
 
-    // 노드와 링크를 정의합니다.
+    // 노드와 링크 정의
     const nodes = projectData.nodes.map((project) => ({
       id: project.id,
       gid: project.gid,
@@ -56,7 +51,49 @@ fetch("/api/projects")
       }))
       .filter((link) => link.source !== null && link.target !== null);
 
-    // 시뮬레이션 생성 및 노드와 링크를 처리합니다.
+    // 노드별 전체 영향 범위를 계산하는 BFS 함수
+    function calculateInfluence(nodeId, links) {
+      const visited = new Set();
+      const queue = [nodeId];
+      visited.add(nodeId);
+
+      while (queue.length > 0) {
+        const current = queue.shift();
+        const outgoingLinks = links.filter((link) => link.source === current);
+
+        outgoingLinks.forEach((link) => {
+          if (!visited.has(link.target)) {
+            visited.add(link.target);
+            queue.push(link.target);
+          }
+        });
+      }
+
+      return visited.size; // 전체 영향 범위의 크기
+    }
+
+    // 각 노드의 영향 범위를 계산하여 저장하고, 노드의 초기 위치를 원형으로 배치
+    const influenceMap = {};
+    const radius = 500; // 원형 배치의 반지름을 설정
+    nodes.forEach((node, i) => {
+      influenceMap[node.id] = calculateInfluence(node.id, links);
+
+      // 원형 배치: 각 노드의 초기 x, y 좌표를 원형으로 배치
+      const angle = (i / nodes.length) * 1 * Math.PI; // 각도를 계산하여 원형 배치
+      node.x = width / 2 + Math.cos(angle) * radius; // x 좌표
+      node.y = height / 2 + Math.sin(angle) * radius; // y 좌표
+    });
+
+    // 노드 크기 설정
+    const nodeRadius = (d) => {
+      const baseSize = 20;
+      const factor = 5; // 영향 범위에 따른 크기 조정 비율
+      const influenceSize = influenceMap[d.id] || 1; // 영향 범위 크기
+      const maxRadius = 100; // 최대 노드 크기 설정
+      return Math.min(baseSize + influenceSize * factor, maxRadius);
+    };
+
+    // D3 시뮬레이션 생성
     const simulation = d3
       .forceSimulation(nodes)
       .force(
@@ -70,10 +107,10 @@ fetch("/api/projects")
       .force("center", d3.forceCenter(width / 2, height / 2)) // 중심 위치 설정
       .force(
         "collision",
-        d3.forceCollide().radius((d) => d.size)
+        d3.forceCollide().radius((d) => nodeRadius(d) + 10) //충돌 처리 개선
       );
 
-    // 링크를 추가합니다.
+    // 링크 추가
     const link = g
       .append("g")
       .selectAll("line")
@@ -83,14 +120,6 @@ fetch("/api/projects")
       .attr("stroke", "gray")
       .attr("stroke-width", 1.5)
       .attr("marker-end", "url(#arrow)"); // 화살표 marker 추가
-
-    const nodeRadius = (d) =>
-      (10 +
-        Math.sqrt(
-          links.filter((l) => l.source === d.id || l.target === d.id).length
-        ) *
-          10) *
-      3.5;
 
     // 링크의 끝점을 노드의 가장자리로 설정
     simulation.on("tick", () => {
@@ -137,25 +166,16 @@ fetch("/api/projects")
       .append("text")
       .attr("font-size", 10)
       .attr("fill", "gray")
-      .text((d) => `${d.type}`);
+      .text((d) => `-${d.type}->`);
 
-    // 노드 크기 계산: 노드 크기를 5배로 증가
+    // 노드 추가
     const node = g
       .append("g")
       .selectAll("circle")
       .data(nodes)
       .enter()
       .append("circle")
-      .attr(
-        "r",
-        (d) =>
-          (10 +
-            Math.sqrt(
-              links.filter((l) => l.source === d.id || l.target === d.id).length
-            ) *
-              10) *
-          3.5
-      )
+      .attr("r", (d) => nodeRadius(d)) // 영향 범위에 따라 노드 크기 설정
       .attr("fill", "orange")
       .call(
         d3
@@ -176,7 +196,7 @@ fetch("/api/projects")
           })
       );
 
-    // 텍스트도 드래그 가능하도록 처리
+    // 텍스트 추가
     const text = g
       .append("g")
       .selectAll("text")
@@ -204,7 +224,7 @@ fetch("/api/projects")
           })
       );
 
-    // 시뮬레이션 동안 노드와 링크의 위치를 업데이트합니다.
+    // 시뮬레이션 동안 노드와 링크의 위치를 업데이트
     simulation.on("tick", () => {
       link
         .attr("x1", (d) => d.source.x)
